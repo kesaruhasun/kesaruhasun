@@ -12,6 +12,15 @@ I'm a Developer & Creator passionate about automating everything. My vision is t
 
 ---
 
+### 📊 GitHub Stats & Contributions
+
+[![Kesaru's GitHub Contribution Graph](https://ghchart.rshah.org/kesaruhasun)](https://github.com/kesaruhasun)
+
+[![Kesaru's GitHub stats](https://github-readme-stats.vercel.app/api?username=kesaruhasun&show_icons=true&theme=transparent)](https://github.com/kesaruhasun)
+[![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=kesaruhasun&layout=compact&theme=transparent)](https://github.com/kesaruhasun)
+
+---
+
 ### 🚀 What I'm Working On
 
 *   **AutoPost:** An end-to-end AI Agentic System that automates content workflows from raw ideas to multi-platform deployment, targeting low-resource languages.
@@ -37,12 +46,4 @@ I'm a Developer & Creator passionate about automating everything. My vision is t
 
 ---
 
-### 📊 GitHub Stats & Contributions
-
-[![Kesaru's GitHub Contribution Graph](https://ghchart.rshah.org/kesaruhasun)](https://github.com/kesaruhasun)
-
-[![Kesaru's GitHub stats](https://github-readme-stats.vercel.app/api?username=kesaruhasun&show_icons=true&theme=transparent)](https://github.com/kesaruhasun)
-[![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=kesaruhasun&layout=compact&theme=transparent)](https://github.com/kesaruhasun)
-
----
 *Building the Future, Guiding the Present.*
