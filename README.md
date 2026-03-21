@@ -37,7 +37,9 @@ I'm a Developer & Creator passionate about automating everything. My vision is t
 
 ---
 
-### 📊 GitHub Stats
+### 📊 GitHub Stats & Contributions
+
+[![Kesaru's GitHub Contribution Graph](https://ghchart.rshah.org/kesaruhasun)](https://github.com/kesaruhasun)
 
 [![Kesaru's GitHub stats](https://github-readme-stats.vercel.app/api?username=kesaruhasun&show_icons=true&theme=transparent)](https://github.com/kesaruhasun)
 [![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=kesaruhasun&layout=compact&theme=transparent)](https://github.com/kesaruhasun)
