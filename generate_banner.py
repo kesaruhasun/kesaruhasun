@@ -1,46 +1,84 @@
 #!/usr/bin/env python3
 """
 Banner Generator for kesaruhasun GitHub Profile
-Generates animated terminal banner SVGs (dark.svg & light.svg) adhering to GitHub-Profile-Master-Prompt specs.
-Supports input image dithering via PIL and NumPy.
+Generates animated terminal banner SVGs (dark.svg & light.svg).
+Uses Floyd-Steinberg dithering for portrait and proper monospace text layout.
 """
 
 import os
 import sys
+import math
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
-def create_dither_matrix(width=300, height=340, image_path=None):
+
+def create_dither_matrix(width, height, image_path=None, is_dark=True):
     """
-    Creates a 300x340 1-bit Floyd-Steinberg dithered grid.
-    If image_path is provided, processes the photo; otherwise generates a tech portrait silhouette matrix.
+    Creates a dithered dot grid from an image using Floyd-Steinberg with serpentine scan.
+    For dark mode: background segmented out, subject drawn in dots.
+    For light mode: background kept, dark areas drawn in dots.
     """
     if image_path and os.path.exists(image_path):
-        img = Image.open(image_path).convert('L')
-        # Crop head & shoulders if needed, resize to width x height
+        img = Image.open(image_path).convert('RGBA')
+        
+        # Smart crop: find center of image, crop head-and-shoulders
+        w_orig, h_orig = img.size
+        # Target aspect ratio for our frame
+        target_aspect = width / height  # ~0.88
+        current_aspect = w_orig / h_orig
+        
+        if current_aspect > target_aspect:
+            # Image is wider than target — crop sides
+            new_w = int(h_orig * target_aspect)
+            left = (w_orig - new_w) // 2
+            img = img.crop((left, 0, left + new_w, h_orig))
+        else:
+            # Image is taller than target — crop bottom
+            new_h = int(w_orig / target_aspect)
+            img = img.crop((0, 0, w_orig, new_h))
+        
         img = img.resize((width, height), Image.Resampling.LANCZOS)
-        # Apply contrast 1.3x & unsharp mask as per spec
-        img = ImageOps.autocontrast(img, cutoff=1)
-        img = img.filter(ImageFilter.UnsharpMask(radius=3, percent=140))
-        img_np = np.array(img, dtype=float)
+        
+        # Convert to grayscale
+        gray = img.convert('L')
+        
+        # Apply 1.3x contrast boost as per spec
+        enhancer = ImageEnhance.Contrast(gray)
+        gray = enhancer.enhance(1.3)
+        
+        # Unsharp mask for edge crispness
+        gray = gray.filter(ImageFilter.UnsharpMask(radius=3, percent=140))
+        
+        img_np = np.array(gray, dtype=float)
+        
+        if is_dark:
+            # Dark mode: invert so dark subject areas become dots (white=dot)
+            # We want the person/dark areas to show as dots on dark background
+            pass  # Keep as-is: dark pixels -> low values -> will become dots (new_val=0 -> dithered=1)
+        else:
+            # Light mode: invert the image so light background areas become dots
+            img_np = 255.0 - img_np
     else:
-        # Generate a stylized portrait silhouette / geometric tech face pattern
-        img_np = np.full((height, width), 240.0)
+        # Generate a stylized placeholder silhouette
+        img_np = np.full((height, width), 230.0)
         y, x = np.ogrid[:height, :width]
+        cx, cy = width // 2, height // 3
         
         # Head oval
-        head_mask = ((x - 150)**2 / 75**2 + (y - 130)**2 / 95**2) <= 1.0
-        # Shoulders arc
-        shoulder_mask = ((x - 150)**2 / 140**2 + (y - 280)**2 / 100**2) <= 1.0
-        # Glasses / Tech highlight
-        eyes_mask = ((np.abs(x - 150) > 20) & (np.abs(x - 150) < 60) & (np.abs(y - 120) < 18))
+        head_mask = ((x - cx)**2 / (width*0.22)**2 + (y - cy)**2 / (height*0.22)**2) <= 1.0
+        # Neck
+        neck_mask = ((np.abs(x - cx) < width*0.08) & (y > cy + height*0.18) & (y < cy + height*0.32))
+        # Shoulders
+        shoulder_cy = cy + height*0.4
+        shoulder_mask = ((x - cx)**2 / (width*0.45)**2 + (y - shoulder_cy)**2 / (height*0.25)**2) <= 1.0
+        shoulder_mask = shoulder_mask & (y > cy + height*0.25)
         
-        img_np[shoulder_mask] = 80.0
-        img_np[head_mask] = 60.0
-        img_np[eyes_mask] = 220.0
+        img_np[shoulder_mask] = 70.0
+        img_np[neck_mask] = 65.0
+        img_np[head_mask] = 55.0
         
-        # Add subtle noise/shading gradient
-        gradient = np.linspace(0.8, 1.2, height)[:, None]
+        # Subtle gradient
+        gradient = np.linspace(0.85, 1.15, height)[:, None]
         img_np = np.clip(img_np * gradient, 0, 255)
     
     # Floyd-Steinberg Dithering with serpentine scan
@@ -48,201 +86,212 @@ def create_dither_matrix(width=300, height=340, image_path=None):
     dithered = np.zeros((h, w), dtype=int)
     work = img_np.copy()
     
-    for y in range(h):
-        reverse = (y % 2 == 1)
+    for y_idx in range(h):
+        reverse = (y_idx % 2 == 1)
         x_range = range(w - 1, -1, -1) if reverse else range(w)
-        for x in x_range:
-            old_val = work[y, x]
-            new_val = 255 if old_val > 128 else 0
-            dithered[y, x] = 1 if new_val == 0 else 0
+        for x_idx in x_range:
+            old_val = work[y_idx, x_idx]
+            new_val = 255.0 if old_val > 128.0 else 0.0
+            dithered[y_idx, x_idx] = 1 if new_val == 0 else 0
             err = old_val - new_val
             
             if not reverse:
-                if x + 1 < w: work[y, x + 1] += err * 7 / 16
-                if y + 1 < h:
-                    if x - 1 >= 0: work[y + 1, x - 1] += err * 3 / 16
-                    work[y + 1, x] += err * 5 / 16
-                    if x + 1 < w: work[y + 1, x + 1] += err * 1 / 16
+                if x_idx + 1 < w:
+                    work[y_idx, x_idx + 1] += err * 7.0 / 16.0
+                if y_idx + 1 < h:
+                    if x_idx - 1 >= 0:
+                        work[y_idx + 1, x_idx - 1] += err * 3.0 / 16.0
+                    work[y_idx + 1, x_idx] += err * 5.0 / 16.0
+                    if x_idx + 1 < w:
+                        work[y_idx + 1, x_idx + 1] += err * 1.0 / 16.0
             else:
-                if x - 1 >= 0: work[y, x - 1] += err * 7 / 16
-                if y + 1 < h:
-                    if x + 1 < w: work[y + 1, x + 1] += err * 3 / 16
-                    work[y + 1, x] += err * 5 / 16
-                    if x - 1 >= 0: work[y + 1, x - 1] += err * 1 / 16
-                    
+                if x_idx - 1 >= 0:
+                    work[y_idx, x_idx - 1] += err * 7.0 / 16.0
+                if y_idx + 1 < h:
+                    if x_idx + 1 < w:
+                        work[y_idx + 1, x_idx + 1] += err * 3.0 / 16.0
+                    work[y_idx + 1, x_idx] += err * 5.0 / 16.0
+                    if x_idx - 1 >= 0:
+                        work[y_idx + 1, x_idx - 1] += err * 1.0 / 16.0
+    
     return dithered
 
+
+def xml_escape(s):
+    """Escape special characters for XML."""
+    return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+
+
 def generate_banner_svg(is_dark=True, image_path=None):
-    width, height = 1180, 610
+    """Generate a single banner SVG file."""
     
-    # Colors according to Master Prompt Spec
+    W, H = 1180, 610
+    
+    # ── Color palette ──
     if is_dark:
-        bg_color = "#0A101F"
-        card_bg = "#0F172A"
-        card_border = "#1E293B"
-        chrome_title = "#94A3B8"
-        ui_primary = "#22D3EE"
-        accent_color = "#10B981"
-        portrait_color = "#A78BFA"
-        text_muted = "#64748B"
-        text_main = "#E2E8F0"
-        label_color = "#38BDF8"
-        value_color = "#F8FAFC"
+        bg          = "#0A101F"
+        card_bg     = "#0F172A"
+        border      = "#1E293B"
+        chrome_txt  = "#94A3B8"
+        cyan        = "#22D3EE"
+        green       = "#10B981"
+        purple      = "#A78BFA"
+        muted       = "#64748B"
+        label_col   = "#38BDF8"
+        val_col     = "#CBD5E1"
     else:
-        bg_color = "#F8FAFC"
-        card_bg = "#FFFFFF"
-        card_border = "#E2E8F0"
-        chrome_title = "#475569"
-        ui_primary = "#0891B2"
-        accent_color = "#059669"
-        portrait_color = "#7C3AED"
-        text_muted = "#94A3B8"
-        text_main = "#0F172A"
-        label_color = "#0284C7"
-        value_color = "#0F172A"
+        bg          = "#F8FAFC"
+        card_bg     = "#FFFFFF"
+        border      = "#E2E8F0"
+        chrome_txt  = "#475569"
+        cyan        = "#0891B2"
+        green       = "#059669"
+        purple      = "#7C3AED"
+        muted       = "#94A3B8"
+        label_col   = "#0284C7"
+        val_col     = "#1E293B"
 
-    dither_matrix = create_dither_matrix(300, 340, image_path)
-    
-    # Convert dither matrix to SVG path rects/dots
-    dot_paths = []
-    frame_x, frame_y = 45, 140
-    scale_x, scale_y = 1.2, 1.2
-    
-    for r in range(dither_matrix.shape[0]):
-        for c in range(dither_matrix.shape[1]):
-            if dither_matrix[r, c] == 1:
-                dx = frame_x + c * scale_x
-                dy = frame_y + r * scale_y
-                dot_paths.append(f"M{dx:.1f},{dy:.1f}h1v1h-1z")
-                
-    portrait_d = " ".join(dot_paths)
+    # ── Dither portrait ──
+    dither_w, dither_h = 280, 320
+    dither = create_dither_matrix(dither_w, dither_h, image_path, is_dark)
 
-    # Info panel data updated with exact developer context
+    # Convert to SVG dot paths — each dot is a 1.2×1.2 rect
+    frame_x, frame_y = 52, 126
+    dot_size = 1.15
+    dots = []
+    for r in range(dither_h):
+        for c in range(dither_w):
+            if dither[r, c] == 1:
+                px = frame_x + c * dot_size
+                py = frame_y + r * dot_size
+                dots.append(f"M{px:.1f},{py:.1f}h{dot_size}v{dot_size}h-{dot_size}z")
+    portrait_path = " ".join(dots)
+
+    # ── System info rows ──
+    # Keep values SHORT so they don't overflow the panel
     rows = [
-        ("Subject", "Kesaru Hasun Dhanasinghe"),
-        ("Role", "AI Systems Dev & Tekkeys Co-founder"),
-        ("Origin", "Colombo, Sri Lanka"),
-        ("Education", "BSc (Hons) IT (AI/Data Science) @ SLIIT"),
-        ("Status", "Building OpenClaw + Shipping AI Agents"),
-        ("ToolChain", "Obsidian · Spokenly · MCP · Docker · Linux"),
-        ("Core.Lang", "Python · TypeScript · Java · SQL · PHP"),
-        ("Core.Front", "Next.js 15 · React · Tailwind CSS"),
-        ("Core.Back", "Node.js · FastAPI · Cloudflare Workers"),
-        ("Core.Data", "PostgreSQL · Cloudflare D1 · Vector DBs"),
-        ("Core.Infra", "GCP · Anthropic CPN · Vercel · Firebase"),
-        ("Certifications", "Google GenAI Cohort 2 · DeepMind SLM · MCP"),
-        ("Grid.Web", "https://kesaru.me · https://sobersided.com"),
-        ("Grid.GitHub", "github.com/kesaruhasun"),
+        ("Subject",   "Kesaru Hasun Dhanasinghe"),
+        ("Role",      "AI Systems Dev · Tekkeys Co-founder"),
+        ("Origin",    "Colombo, Sri Lanka"),
+        ("Education", "BSc IT (AI/DS) @ SLIIT"),
+        ("Status",    "Building OpenClaw · Shipping Agents"),
+        ("Tools",     "Obsidian · MCP · Docker · Linux"),
+        ("Lang",      "Python · TypeScript · Java · SQL"),
+        ("Frontend",  "Next.js 15 · React · Tailwind CSS"),
+        ("Backend",   "Node.js · FastAPI · CF Workers"),
+        ("Data",      "Postgres · Cloudflare D1 · VectorDBs"),
+        ("Infra",     "GCP · Anthropic CPN · Vercel"),
+        ("Certs",     "GenAI Cohort 2 · DeepMind SLM"),
+        ("Web",       "kesaru.me · sobersided.com"),
+        ("GitHub",    "github.com/kesaruhasun"),
     ]
 
-    info_rows_svg = []
-    start_y = 175
-    row_height = 27
-    
+    # Right panel starts at x=435, width=705, so content area ~450 to ~1120 = 670px
+    # We use a simple two-column layout: label at fixed x, value at fixed x
+    panel_x = 452
+    label_x = panel_x + 8
+    value_x = panel_x + 140  # After label + dots
+    start_y = 155
+    row_h = 26
+    font_size = 12.5
+
+    info_svg_parts = []
     for i, (label, val) in enumerate(rows):
-        y_pos = start_y + i * row_height
-        dots_count = max(2, 28 - len(label))
-        dots_str = "." * dots_count
-        val_xml = val.replace('&', '&amp;')
-        
-        info_rows_svg.append(f'''
-        <g transform="translate(450, {y_pos})">
-            <text x="0" y="0" fill="{label_color}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" font-weight="bold">{label}</text>
-            <text x="110" y="0" fill="{text_muted}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13">{dots_str}</text>
-            <text x="210" y="0" fill="{value_color}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" font-weight="500" textLength="470" lengthAdjust="spacingAndGlyphs">{val_xml}</text>
-        </g>
-        ''')
+        y = start_y + i * row_h
+        val_esc = xml_escape(val)
+        # Dotted leader between label and value
+        dot_count = max(2, 16 - len(label))
+        leader = "·" * dot_count
+        info_svg_parts.append(
+            f'    <text x="{label_x}" y="{y}" fill="{label_col}" '
+            f'font-family="\'JetBrains Mono\',Menlo,Monaco,\'Courier New\',monospace" '
+            f'font-size="{font_size}" font-weight="700">{xml_escape(label)}</text>\n'
+            f'    <text x="{label_x + 95}" y="{y}" fill="{muted}" '
+            f'font-family="\'JetBrains Mono\',Menlo,Monaco,\'Courier New\',monospace" '
+            f'font-size="{font_size}" letter-spacing="1">{leader}</text>\n'
+            f'    <text x="{value_x}" y="{y}" fill="{val_col}" '
+            f'font-family="\'JetBrains Mono\',Menlo,Monaco,\'Courier New\',monospace" '
+            f'font-size="{font_size}">{val_esc}</text>'
+        )
+    info_rows_block = "\n".join(info_svg_parts)
 
-    svg_content = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="{width}" height="{height}">
-    <defs>
-        <style>
-            @keyframes pulse {{
-                0%, 100% {{ opacity: 1; transform: scale(1); }}
-                50% {{ opacity: 0.4; transform: scale(0.85); }}
-            }}
-            @keyframes morphLogo {{
-                0%, 20% {{ transform: translate(0px, 0px) scale(1); opacity: 0.9; }}
-                25%, 45% {{ transform: translate(10px, -5px) scale(1.05); opacity: 0.6; }}
-                50%, 70% {{ transform: translate(-5px, 5px) scale(0.95); opacity: 0.9; }}
-                75%, 100% {{ transform: translate(0px, 0px) scale(1); opacity: 0.9; }}
-            }}
-            .live-dot {{
-                animation: pulse 2s infinite ease-in-out;
-                transform-origin: 1060px 48px;
-            }}
-            .morph-logo {{
-                animation: morphLogo 14.2s infinite ease-in-out;
-            }}
-        </style>
-    </defs>
+    # ── Build SVG ──
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">
+  <defs>
+    <style>
+      @keyframes pulse {{
+        0%, 100% {{ opacity: 1; }}
+        50% {{ opacity: 0.3; }}
+      }}
+      .live-dot {{ animation: pulse 2s ease-in-out infinite; }}
+    </style>
+    <clipPath id="termClip"><rect x="20" y="62" width="1140" height="528" rx="0"/></clipPath>
+  </defs>
 
-    <!-- Main Background -->
-    <rect width="{width}" height="{height}" fill="{bg_color}" rx="16"/>
+  <!-- Background -->
+  <rect width="{W}" height="{H}" fill="{bg}" rx="16"/>
 
-    <!-- Terminal Window Container -->
-    <rect x="20" y="20" width="1140" height="570" fill="{card_bg}" stroke="{card_border}" stroke-width="2" rx="12"/>
+  <!-- Terminal Window -->
+  <rect x="20" y="20" width="1140" height="570" fill="{card_bg}" stroke="{border}" stroke-width="1.5" rx="12"/>
 
-    <!-- Terminal Header Bar -->
-    <rect x="20" y="20" width="1140" height="42" fill="{card_border}" rx="12"/>
-    <rect x="20" y="50" width="1140" height="12" fill="{card_border}"/>
+  <!-- Title Bar -->
+  <rect x="20" y="20" width="1140" height="42" fill="{border}" rx="12"/>
+  <rect x="20" y="50" width="1140" height="12" fill="{border}"/>
+  <!-- Traffic lights -->
+  <circle cx="48" cy="41" r="6" fill="#EF4444"/>
+  <circle cx="68" cy="41" r="6" fill="#F59E0B"/>
+  <circle cx="88" cy="41" r="6" fill="#10B981"/>
+  <!-- Title text -->
+  <text x="590" y="46" fill="{chrome_txt}" font-family="'JetBrains Mono',Menlo,Monaco,'Courier New',monospace" font-size="13" font-weight="600" text-anchor="middle">profile.sh --live</text>
+  <!-- LIVE badge -->
+  <g transform="translate(1020, 31)">
+    <rect width="100" height="22" fill="#EF4444" fill-opacity="0.15" stroke="#EF4444" stroke-width="1" rx="11"/>
+    <circle cx="15" cy="11" r="4" fill="#EF4444" class="live-dot"/>
+    <text x="26" y="15" fill="#EF4444" font-family="'JetBrains Mono',Menlo,Monaco,'Courier New',monospace" font-size="10" font-weight="700">LIVE SYSTEM</text>
+  </g>
 
-    <!-- Window Controls -->
-    <circle cx="48" cy="41" r="6" fill="#EF4444"/>
-    <circle cx="68" cy="41" r="6" fill="#F59E0B"/>
-    <circle cx="88" cy="41" r="6" fill="#10B981"/>
+  <!-- ═══════════ LEFT PANEL: VISUAL.MAP ═══════════ -->
+  <rect x="30" y="72" width="395" height="508" fill="{bg}" stroke="{border}" stroke-width="1" rx="8"/>
+  <!-- Panel header -->
+  <rect x="30" y="72" width="395" height="28" fill="{border}" rx="8"/>
+  <rect x="30" y="92" width="395" height="8" fill="{border}"/>
+  <text x="44" y="91" fill="{cyan}" font-family="'JetBrains Mono',Menlo,Monaco,'Courier New',monospace" font-size="11" font-weight="700">VISUAL.MAP // DITHER_MATRIX</text>
 
-    <!-- Window Title -->
-    <text x="590" y="46" fill="{chrome_title}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" font-weight="bold" text-anchor="middle">profile.sh --live</text>
+  <!-- Dithered Portrait -->
+  <g clip-path="url(#termClip)">
+    <path d="{portrait_path}" fill="{purple}" shape-rendering="crispEdges"/>
+  </g>
 
-    <!-- Pulsing LIVE Badge -->
-    <g transform="translate(1010, 31)">
-        <rect x="0" y="0" width="110" height="22" fill="#EF4444" fill-opacity="0.15" stroke="#EF4444" stroke-width="1" rx="11"/>
-        <circle cx="16" cy="11" r="4" fill="#EF4444" class="live-dot"/>
-        <text x="28" y="15" fill="#EF4444" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="11" font-weight="bold">LIVE SYSTEM</text>
-    </g>
+  <!-- ═══════════ RIGHT PANEL: SYSTEM.INFO ═══════════ -->
+  <rect x="435" y="72" width="715" height="508" fill="{bg}" stroke="{border}" stroke-width="1" rx="8"/>
+  <!-- Panel header -->
+  <rect x="435" y="72" width="715" height="28" fill="{border}" rx="8"/>
+  <rect x="435" y="92" width="715" height="8" fill="{border}"/>
+  <text x="450" y="91" fill="{green}" font-family="'JetBrains Mono',Menlo,Monaco,'Courier New',monospace" font-size="11" font-weight="700">SYSTEM.INFO // KESARU_HASUN_DHANASINGHE</text>
 
-    <!-- Left Frame: VISUAL.MAP Portrait & Logo Morph -->
-    <rect x="40" y="80" width="375" height="485" fill="{bg_color}" stroke="{card_border}" stroke-width="1.5" rx="8"/>
-    <rect x="40" y="80" width="375" height="30" fill="{card_border}" rx="8"/>
-    <rect x="40" y="102" width="375" height="8" fill="{card_border}"/>
-    <text x="55" y="100" fill="{ui_primary}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="12" font-weight="bold">VISUAL.MAP // DITHER_MATRIX</text>
+  <!-- Username pill -->
+  <g transform="translate(990, 76)">
+    <rect width="148" height="20" fill="{cyan}" fill-opacity="0.15" stroke="{cyan}" stroke-width="1" rx="10"/>
+    <text x="74" y="14" fill="{cyan}" font-family="'JetBrains Mono',Menlo,Monaco,'Courier New',monospace" font-size="10" font-weight="700" text-anchor="middle">@kesaruhasun</text>
+  </g>
 
-    <!-- Dither Portrait Dots -->
-    <path d="{portrait_d}" fill="{portrait_color}" shape-rendering="crispEdges"/>
+  <!-- Info Rows -->
+{info_rows_block}
 
-    <!-- Morphing Logo Overlays -->
-    <g class="morph-logo" transform="translate(320, 480)">
-        <rect x="0" y="0" width="75" height="65" fill="{card_bg}" stroke="{ui_primary}" stroke-width="1.5" rx="8"/>
-        <polygon points="37.5,15 57.5,50 17.5,50" fill="{accent_color}"/>
-    </g>
-
-    <!-- Right Frame: SYSTEM.INFO Readout -->
-    <rect x="435" y="80" width="705" height="485" fill="{bg_color}" stroke="{card_border}" stroke-width="1.5" rx="8"/>
-    <rect x="435" y="80" width="705" height="30" fill="{card_border}" rx="8"/>
-    <rect x="435" y="102" width="705" height="8" fill="{card_border}"/>
-    <text x="450" y="100" fill="{accent_color}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="12" font-weight="bold">SYSTEM.INFO // KESARU_HASUN_DHANASINGHE</text>
-
-    <!-- Username Pill -->
-    <g transform="translate(980, 84)">
-        <rect x="0" y="0" width="145" height="22" fill="{ui_primary}" fill-opacity="0.2" stroke="{ui_primary}" stroke-width="1" rx="6"/>
-        <text x="72" y="15" fill="{ui_primary}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="11" font-weight="bold" text-anchor="middle">@kesaruhasun</text>
-    </g>
-
-    <!-- Info Rows -->
-    {"".join(info_rows_svg)}
-
-    <!-- Bottom Terminal Status Bar -->
-    <line x1="435" y1="525" x2="1140" y2="525" stroke="{card_border}" stroke-width="1.5"/>
-    <text x="450" y="548" fill="{text_muted}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="11">● Tekkeys Co-founder &amp; AI Systems Architect</text>
-    <text x="910" y="548" fill="{accent_color}" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="11">Google Cloud GenAI Cohort 2 ⚡</text>
+  <!-- Bottom status bar -->
+  <line x1="435" y1="540" x2="1150" y2="540" stroke="{border}" stroke-width="1"/>
+  <text x="450" y="560" fill="{muted}" font-family="'JetBrains Mono',Menlo,Monaco,'Courier New',monospace" font-size="11">● Tekkeys Co-founder &amp; AI Systems Architect</text>
+  <text x="930" y="560" fill="{green}" font-family="'JetBrains Mono',Menlo,Monaco,'Courier New',monospace" font-size="11">GenAI Cohort 2 ⚡</text>
 </svg>'''
 
-    filename = "dark.svg" if is_dark else "light.svg"
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(svg_content)
-    print(f"Generated {filename} successfully.")
+    fname = "dark.svg" if is_dark else "light.svg"
+    with open(fname, "w", encoding="utf-8") as f:
+        f.write(svg)
+    print(f"✓ Generated {fname} ({len(dots)} dots)")
+
 
 if __name__ == "__main__":
-    img_arg = sys.argv[1] if len(sys.argv) > 1 else None
-    generate_banner_svg(is_dark=True, image_path=img_arg)
-    generate_banner_svg(is_dark=False, image_path=img_arg)
+    img = sys.argv[1] if len(sys.argv) > 1 else None
+    generate_banner_svg(is_dark=True, image_path=img)
+    generate_banner_svg(is_dark=False, image_path=img)
+    print("Done!")
