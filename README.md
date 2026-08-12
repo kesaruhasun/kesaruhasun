@@ -81,12 +81,18 @@
 
 ### 📊 GitHub Activity & Tech Stack
 
-<!-- Phase 2: Self-Hosted GitHub Stats Cards -->
+<!-- Phase 2: GitHub Stats Cards -->
 <div align="center">
-  <img width="100%" src="https://streak-stats.demolab.com/?user=kesaruhasun&hide_border=true&background=0A101F&stroke=22D3EE&ring=A78BFA&fire=10B981&currStreakLabel=22D3EE&sideLabels=94A3B8&currStreakNum=F8FAFC&sideNums=F8FAFC&dates=64748B&titleColor=22D3EE&card_width=1180" alt="Kesaru's GitHub Streak" />
+  <a href="https://git.io/streak-stats">
+    <img src="https://streak-stats.demolab.com?user=kesaruhasun&theme=transparent&hide_border=true&ring=A78BFA&fire=10B981&currStreakLabel=22D3EE&sideLabels=94A3B8&currStreakNum=F8FAFC&sideNums=F8FAFC&dates=64748B" alt="GitHub Streak" />
+  </a>
   <br/><br/>
-  <img width="49%" src="https://github-readme-stats-six-brown-y35qynpabr.vercel.app/api?username=kesaruhasun&show_icons=true&count_private=true&include_all_commits=true&hide_rank=true&hide_border=true&title_color=22D3EE&icon_color=A78BFA&text_color=94A3B8&bg_color=0A101F&card_width=500" alt="Kesaru's GitHub Stats" />
-  <img width="49%" src="https://github-readme-stats-six-brown-y35qynpabr.vercel.app/api/top-langs/?username=kesaruhasun&layout=compact&langs_count=8&hide_border=true&title_color=22D3EE&text_color=94A3B8&bg_color=0A101F&card_width=500" alt="Top Languages" />
+  <a href="https://github.com/kesaruhasun">
+    <img width="49%" src="https://github-readme-stats-six-brown-y35qynpabr.vercel.app/api?username=kesaruhasun&show_icons=true&count_private=true&include_all_commits=true&hide_rank=true&hide_border=true&title_color=22D3EE&icon_color=A78BFA&text_color=94A3B8&bg_color=00000000" alt="GitHub Stats" />
+  </a>
+  <a href="https://github.com/kesaruhasun">
+    <img width="49%" src="https://github-readme-stats-six-brown-y35qynpabr.vercel.app/api/top-langs/?username=kesaruhasun&layout=compact&langs_count=8&hide_border=true&title_color=22D3EE&text_color=94A3B8&bg_color=00000000" alt="Top Languages" />
+  </a>
 </div>
 
 <br/>
