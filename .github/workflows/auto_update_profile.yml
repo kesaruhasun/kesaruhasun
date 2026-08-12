@@ -1,0 +1,37 @@
+name: Automated Profile Sync & Refresh
+
+on:
+  schedule:
+    # Runs every Sunday at 00:00 UTC (Weekly sync)
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+jobs:
+  update-profile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install Pillow numpy
+
+      - name: Run Sync & Banner Generator
+        run: |
+          python .github/scripts/sync_profile.py
+
+      - name: Auto Commit & Push Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: weekly automated profile banner & content refresh [skip ci]"
+          branch: main
+          file_pattern: "dark.svg light.svg README.md"
