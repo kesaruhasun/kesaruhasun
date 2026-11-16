@@ -20,7 +20,7 @@
   <p><i>Designing secure cloud deployments &amp; agentic workflows | Aspiring Computational Neuroscientist</i></p>
 
   <!-- Phase 4: Social Links (Subtle & Sleek) -->
-  <a href="https://kesaru.me">
+  <a href="https://www.kesaru.me">
     <img src="https://img.shields.io/badge/Portfolio-0A101F?style=flat-square&logo=vercel&logoColor=22D3EE&labelColor=0A101F" alt="Portfolio" />
   </a>
   &nbsp;
@@ -56,6 +56,18 @@
 
 ---
 
+### ✍️ Personal Essays & Chronicles
+
+Alongside building AI systems, I write candid essays on navigating overthinking, loneliness, emotional resilience, and university life in Sri Lanka at [**www.kesaru.me/chronicles**](https://www.kesaru.me/chronicles):
+
+- [**Don't Stop Overthinking**](https://www.kesaru.me/chronicles/eat-first) — Separating biological panic from reality and grounding yourself during late-night anxiety spirals.
+- [**Lost, Lonely, and Building My Way Out**](https://www.kesaru.me/chronicles/lost-lonely-and-building-my-way-out-a-manifesto-for-creators) — Finding your tribe of "Galileos" and loving the daily craft when nobody around you gets it.
+- [**The Darwinian Defense**](https://www.kesaru.me/chronicles/the-darwinian-defense) — Emotional resilience, Stoic *amor fati*, and personal boundaries.
+- [**The Steering Wheel**](https://www.kesaru.me/chronicles/kesaru-kandy-article) — Recovering from Colombo burnout, life at SLIIT Kandy, and writing to stay awake.
+- [**Pigs Can Fly**](https://www.kesaru.me/chronicles/pigs-can-fly) — On feeling like an outsider, the classical Sinhala origin of my name **Kesaru**, and breaking arbitrary limits.
+
+---
+
 ### 📌 Featured Open-Source Projects
 
 | Project | Stack | Description |
@@ -63,7 +75,7 @@
 | 🗂️ [**Obsidian-MOC-Automation**](https://github.com/kesaruhasun/Obsidian-MOC-Automation) | Python | Automates Maps of Content (MOCs) for Obsidian vault knowledge graphs |
 | 🎓 [**mcp-sliit-courseweb**](https://github.com/kesaruhasun/mcp-sliit-courseweb) | TypeScript, MCP | Model Context Protocol server connecting AI agents to SLIIT Courseweb / Moodle |
 | 🧪 [**LabFlow-Public**](https://github.com/kesaruhasun/LabFlow-Public) | Python | Open-source release of LabFlow AI automation suite |
-| 🌐 [**kesaru.me**](https://kesaru.me) | Next.js 15, Notion API | Personal digital garden and portfolio driven by Notion headless CMS |
+| 🌐 [**kesaru.me**](https://www.kesaru.me) | Next.js 15, Notion API | Personal digital garden and portfolio driven by Notion headless CMS |
 
 ---
 
